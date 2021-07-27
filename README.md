@@ -26,7 +26,7 @@ from citcall import Citcall
 ```
 Create Object
 ```python
-citcall = Citcall("userid","APIKEY")
+account = Citcall(userid="Your userid", apikey="Your apikey")
 ```
 ***OR***
 
@@ -35,7 +35,7 @@ import citcall
 ```
 Create Object
 ```python
-citcall = citcall.Citcall("userid","APIKEY")
+account = citcall.Citcall(userid="Your userid", apikey="Your apikey")
 ```
 
 
@@ -43,24 +43,24 @@ citcall = citcall.Citcall("userid","APIKEY")
 
 ### Miscall OTP
 
-To use [Citcall's Miscall Async API](https://docs.citcall.com/async/) to Asynchronous miscall, call the `citcall.async_miscall()` method.
+To use [Citcall's Miscall Async API](https://docs.citcall.com/async/) to Asynchronous miscall, call the `account.async_miscall()` method.
 
-The API can be called directly, using a simple array of parameters, the keys match the [parameters of the API](https://docs.citcall.com/async/).
+The API can be called directly, using keyword argument, the keys match the [parameters of the API](https://docs.citcall.com/async/).
 
 ```python
-motp = citcall.async_miscall({"msisdn":MSISDN,"gateway":gateway})
+motp = account.async_miscall(msisdn="msisdn", gateway=gateway)
 ```
 If you want to able to do verify later use this example.
 ```python
-motp = citcall.async_miscall({"msisdn":MSISDN,"gateway":gateway,"valid_time":valid_time,"limit_try":limit_try})
+motp = account.async_miscall(msisdn="msisdn", gateway=gateway, valid_time=valid_time, limit_try=limit_try)
 
 ```
 Sync
 ```python
-motp = citcall.sync_miscall({"msisdn":MSISDN,"gateway":gateway})
+motp = account.sync_miscall(msisdn="msisdn", gateway=gateway)
 ```
 ```python
-motp = citcall.sync_miscall({"msisdn":MSISDN,"gateway":gateway,"valid_time":valid_time,"limit_try":limit_try})
+motp = account.sync_miscall(msisdn="msisdn", gateway=gateway, valid_time=valid_time, limit_try=limit_try)
 ```
 The API response data can be accessed as dictonary
 ```python
@@ -69,10 +69,10 @@ print(motp)
 ### SMS
 To use [Citcall's SMS API](https://docs.citcall.com/#sms) to send an SMS message, call the `citcall.sms()` method.
 
-The API can be called directly, using a simple array of parameters, the keys match the [parameters of the API](https://docs.citcall.com/#sms).
+The API can be called directly, using using keyword argument, the keys match the [parameters of the API](https://docs.citcall.com/#sms).
 
 ```python
-sms = citcall.sms({"senderid":"citcall","msisdn":MSISDN,"text":"Test message from the Citcall Python :p"})
+sms = account.sms(senderid="citcall", msisdn="msisdn", text="Hello World!")
 ```
 The API response data can be accessed as dictonary
 
@@ -85,4 +85,3 @@ print(sms)
 2.  Fork [the repository](https://github.com/citcall/citcall-python) on Github to start making your changes to the `master` branch (or branch off of it)
 3.  Write a test which shows that the bug was fixed or that the feature works as expected
 4.  Send a pull request and bug us until We merge it
-

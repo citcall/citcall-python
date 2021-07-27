@@ -1,15 +1,16 @@
-import requests
-import json
+from .exception import MissingKeywordArgument
 import re
+import requests
 import base64
+import json
 
+"""
+
+Citcall REST API for Python. 
+API support for Synchchronous Miscall, Asynchronous miscall, and Sms.
+
+"""
 class Citcall:
-    """
-    This is the Python Class client library for use Citcall's API. 
-    To use this, you'll need a Citcall account and Your IP has been filtered in citcall system. 
-    See citcall documentation for more information. This is currently a beta release. 
-    """
-
     URL_CITCALL = "https://gateway.citcall.com"
     VERSION = "/v3"
     METHOD_SMS = "/sms"
@@ -18,387 +19,377 @@ class Citcall:
     METHOD_VERIFY_MOTP = "/verify"
 
     
-    def __init__(self, userid, apikey):
+    def __init__(self, **kwargs):
         """
         The constructor for Citcall class.
 
-        Parameters :
-            userid (str) : your userid
-            apiker (str) : your apikey  
+        Keyword Arguments *require or **optional :
+            *userid  = (str)
+            *apikey  = (str) 
+        
         """
-        self.userid = userid
-        self.apikey = apikey
+        if not "userid" in kwargs.keys() or not "apikey" in kwargs.keys():
+            raise MissingKeywordArgument("missing keyword argument")
 
+        if not isinstance(kwargs['userid'], str):
+            raise TypeError("userid must string type")
 
-    def sync_miscall(self, param):
+        if not isinstance(kwargs['apikey'], str):
+            raise TypeError("apikey must string type")
+
+        self.userid = kwargs['userid']
+        self.apikey = kwargs['apikey']
+        
+        
+        
+    
+
+    def sync_miscall(self, **kwargs):
         """
         Synchronous miscall
 
-        Parameters :
-            param (dict)
-        Returns : 
+        Keyword Arguments *require OR **optional :
+            *msisdn         = (str)
+            *gateway        = (int)
+            **valid_time    = (int)
+            **limit_try     = (int)            
+        
+        Return : 
             (dict)
-
         """
-        if ("msisdn" in param.keys() and "gateway" in param.keys()):
-            msisdn = param["msisdn"]
-            gateway = param["gateway"]
-            if (gateway > 5 or gateway < 0):
-                ret = {
-                    "rc":"06",
-                    "info":"invalid gateway"
+        if "msisdn" in kwargs.keys() and "gateway" in kwargs.keys():
+            msisdn = kwargs['msisdn']
+            gateway = kwargs['gateway']
+
+            if gateway > 5 or gateway < 0:
+                result = {
+                    "rc": "06",
+                    "info": "invalid gateway"
                 }
-                return ret
+                return result
+
             else:
-                _continue = False
-                msisdn = self.clean_msisdn(msisdn)
+                continue_status = False
+                msisdn = self.__clean_msisdn(msisdn)
                 msisdn = re.sub('/[^0-9]/', '', msisdn)
-                if (msisdn[0:2] == "62"):
-                    if (len(msisdn) > 10 and len(msisdn) < 15):
+                if msisdn[0:2] == "62":
+                    if len(msisdn) > 10 and len(msisdn) < 15:
                         prefix = msisdn[0:5]
-                        if (msisdn > 13):
-                            if (self.is_three(prefix)):
-                                _continue = True
+                        if msisdn > 13:
+                            if self.is_three(prefix):
+                                continue_status = True
                         else:
-                            _continue = True
+                            continue_status = True
                 else:
-                    if (len(msisdn) > 9 and len(msisdn) < 18):
-                        _continue = True
-                
-                if (_continue):
+                    if len(msisdn) > 9 and len(msisdn) < 18:
+                        continue_status = True
+
+                if continue_status:
                     param_hit = {
-                        "msisdn":msisdn,
-                        "gateway":gateway,
+                        "msisdn": msisdn,
+                        "gateway": gateway,
                     }
+
                     valid_verify = True
-                    if ("valid_time" in param.keys()):
-                        valid_time = param['valid_time']
-                        if (isinstance(valid_time,int) and valid_time > 0):
-                            if ("limit_try" in param.keys()):
-                                limit_try = param["limit_try"]
-                                if (not isinstance(valid_time, int) and valid_time <=0 ):
+                    if "valid_time" in kwargs.keys():
+                        valid_time = kwargs["valid_time"]
+                        if isinstance(valid_time, int) and valid_time > 0:
+                            if "limit_try" in kwargs.keys():
+                                limit_try = kwargs["limit_try"]
+                                if not isinstance(limit_try, int) and valid_time <= 0:
                                     valid_verify = False
                                 else:
-                                    param_hit["valid_time"] = valid_time
-                                    param_hit["limit_try"] = limit_try
+                                    param_hit['valid_time'] = valid_time
+                                    param_hit['limit_try'] = limit_try
                         else:
                             valid_verify = False
 
-                    
-                    if (valid_verify):
+                    if valid_verify:
                         method = "sync_miscall"
-                        ret = self.send_request(param_hit,method)
+                        result = self.__send_request(param_hit, method)
                     else:
-                        ret = {
-                            "rc":"06",
-                            "info":"invalid verify data"
+                        result = {
+                            "rc": "06",
+                            "info": "invalid verify data",
                         }
-                        return ret
-                else:
-                    ret = {
-                        "rc":"06",
-                        "info":"invalid verify data"
-                    }
-                    return ret
-                
-                return json.loads(ret)
+                        return result
 
-    
-    def async_miscall(self, param):
+                    return json.loads(result)
+        else:
+            result = {
+                "rc": "88",
+                "info": "missing parameter",
+            }
+
+    def async_miscall(self, **kwargs):
         """
         Asynchronous miscall
 
-        Parameters :
-            param (dict)
-
-        Returns :
-            (dict)
-        """
-        if ("msisdn" in param.keys() and "gateway" in param.keys()):
-            msisdn = param["msisdn"]
-            gateway = param["gateway"]
-
-            if (gateway > 5 or gateway < 0):
-                ret = {
-                    "rc":"06", # 06
-                    "info":"invalid gateway",
-                }
-                return ret
-            else:
-                _continue = False
-                msisdn = self.clean_msisdn(msisdn)
-                msisdn = re.sub('/[^0-9]/', '', msisdn)
-                if (msisdn[0:2] == "62"):
-                    if (len(msisdn) > 10 and len(msisdn) < 15):
-                        prefix = msisdn[0:5]
-                        if (len(msisdn) > 13):
-                            if (self.is_three(prefix)):
-                                _continue = True
-                        else:
-                            _continue = True
-                else:
-                    if (len(msisdn) > 9 and len(msisdn) < 18):
-                        _continue = True
-                
-
-                if (_continue):
-                    param_hit = {
-                        "msisdn":msisdn,
-                        "gateway":gateway,
-                    }
-                    valid_verify = True
-                    if ("valid_time" in param.keys()):
-                        valid_time = param["valid_time"]
-                        if (isinstance(valid_time, int) and valid_time > 0):
-                            if ("limit_try" in param.keys()):
-                                limit_try = param["limit_try"]
-                                if (not isinstance(valid_time, int) and valid_time <= 10):
-                                    valid_verify = False
-                                else:
-                                    param_hit["valid_time"] = valid_time
-                                    param_hit["limit_try"] = limit_try
-
-                        else:
-                            valid_verify = False
-
-                    if (valid_verify):
-                        method = "async_miscall"
-                        ret = self.send_request(param_hit,method)
-                    else:
-                        ret = {
-                            "rc":"06",
-                            "info":"invalid verify data",
-                        }
-                        return ret
-
-        else:
-            return json.loads(ret)
-
-
-    def sms(self, param):
-        """
-        SMS
-
-        Parameters :
-            param (dict)
-
-        Returns :
-            (dict)
+        Keyword Arguments *require OR **optional :
+            *msisdn         = (str)
+            *gateway        = (int)
+            **valid_time    = (int)
+            **limit_try     = (int)            
         
-        """
-        if ("msisdn" in param.keys() and "senderid" in param.keys() and "text" in param.keys()):
-            msisdn = param["msisdn"]
-            senderid = param["senderid"]
-            text = param["text"]
-            list_baru = []
-            _list = msisdn.split(",")
-            for val in _list:    
-                msisdn = self.clean_msisdn(val)
-                msisdn = re.sub('/[^0-9]/', '', msisdn)
-                if (msisdn[0:2] == "62"):
-                    if (len(msisdn) > 10 and len(msisdn) < 15):
-                        prefix = msisdn[0:5]
-                        if (len(msisdn) > 13):
-                            if (self.is_three(prefix)):
-                                list_baru.append(msisdn)
-
-                    else:
-                        ret = {
-                            "rc":"06",
-                            "info":"invalid msisdn or msisdn has invalid format!",
-                        }
-                        return ret
-                else:
-                    if (len(msisdn) > 9 and len(msisdn) < 18):
-                        list_baru.append(msisdn)
-                    else:
-                        ret = {
-                            "rc":"06",
-                            "info":"invalid msisdn or msisdn has invalid format!",
-                        }
-                        return ret
-
-            msisdn = ",".join(list_baru)
-            if (senderid.lower().strip() == "citcall"):
-                senderid = senderid.upper()
-            param_hit = {
-                "msisdn":msisdn,
-                "senderid":senderid,
-                "text":text,
-            }
-            method = "sms"
-            ret = self.send_request(param_hit, method)
-        else:
-            ret = {
-                "rc":"88",
-                "info":"missing parameter",
-            }
-            return ret
-
-        return json.loads(ret)
-
-
-    def verify_motp(self, param):
-        """ 
-        Verify Miscall OTP
-
-        Parameters :
-            param (dict)
-
-        Returns :
+        Return : 
             (dict)
-
         """
-        if ("msisdn" in param.keys() and "trxid" in param.keys() and "token" in param.keys()):
-            if (param["token"].isnumeric()):
-                if (len(param["token"]) > 3):
-                    msisdn = param["msisdn"]
-                    trxid = param["trxid"]
-                    token = param["token"]
-                    _continue = False
-                    msisdn = self.clean_msisdn(msisdn)
-                    msisdn = re.sub('/[^0-9]/', '', msisdn)
-                    if (msisdn[0:2] == "62"):
-                        if (len(msisdn) > 10 and len(msisdn) < 15):
-                            prefix = msisdn[0:5]
-                            if (len(msisdn) > 13):
-                                if (self.is_three(prefix)):
-                                    _continue = True
+        if "msisdn" in kwargs.keys() and "gateway" in kwargs.keys():
+            msisdn = kwargs["msisdn"]
+            gateway = kwargs["gateway"]
+
+            if gateway > 5 or gateway < 0:
+                result = {
+                    "rc": "06",
+                    "info": "invalid gateway",
+                }
+                return result
+            else:
+                continue_status = False
+                msisdn = self.__clean_msisdn(msisdn)
+                msisdn = re.sub('/[^0-9]/', '', msisdn)
+                if msisdn[0:2] == "62":
+                    if len(msisdn) > 10 and len(msisdn) < 15:
+                        prefix = msisdn[0:5]
+                        if len(msisdn) > 13:
+                            if self.is_three(prefix):
+                                continue_status = True
+                        else:
+                            continue_status = True
+                else:
+                    if len(msisdn) > 9 and len(msisdn) < 18:
+                        continue_status = True
+
+            if continue_status:
+                param_hit = {
+                    "msisdn": msisdn,
+                    "gateway": gateway,
+                }
+                valid_verify = True
+                if "valid_time" in kwargs.keys():
+                    valid_time = kwargs["valid_time"]
+                    if isinstance(valid_time, int) and valid_time > 0:
+                        if "limit_try" in kwargs.keys():
+                            limit_try = kwargs["limit_try"]
+                            if not isinstance(valid_time, int) and valid_time <= 10:
+                                continue_status = False
                             else:
-                                _continue = True
+                                param_hit["valid_time"] = valid_time
+                                param_hit["limit_try"] = limit_try
                     else:
-                        if (len(msisdn) > 9 and len(msisdn) < 18):
-                            _continue = True
+                        valid_verify = False
 
-                    if (_continue):
-                        param_hit = {
-                            "msisdn":msisdn,
-                            "trxid":trxid,
-                            "token":token,
-                        }
-                        method = "verify_otp"
-                        ret = self.send_request(param_hit, method)
-                    else:
-                        ret = {
-                            "rc":"06",
-                            "info":"invalid mobile number"
-                        }
-                        return ret
+                if valid_verify:
+                    method = "async_miscall"
+                    result = self.__send_request(param_hit)
+                    result = json.loads(result)
+                    return result
                 else:
-                    ret = {
-                        "rc":"06",
-                        "info":"invalid token, token length minimum 4 digits",
+                    result = {
+                        "rc": "06",
+                        "info": "invalid verify data",
                     }
-                    return ret
-
-            else:
-                ret = {
-                    "rc":"06",
-                    "info":"invalid token, token length minimum 4 digits",
-                }
-                return ret
+                    return result
 
         else:
-            ret = {
-                "rc":"88",
-                "info":"missing parameter",
+            result = {
+                "rc": "06",
+                "info": "missing parameter",
             }
-            return ret
-        
-        return json.loads(ret)
+            return result
 
-    
-    def send_request(self, param, method):
-        """
-        Sending request to Citcall API
-
-        Parameters :
-            param (dict)
-            method (str)
-
-        Returns :
-            res (str)
-
-        """
+    def __send_request(self, param, method):
         userid = self.userid
         apikey = self.apikey
-
         tmp_auth = userid + ":" + apikey
         auth = base64.b64encode(tmp_auth.encode())
 
-        if (method == "sync_miscall"):
+        if method == "sync_miscall":
             action = Citcall.METHOD_SYNC_MISCALL
-        elif (method == "async_miscall"):
+        elif method == "async_miscall":
             action = Citcall.METHOD_ASYNC_MISCALL
-        elif (method == "sms"):
+        elif method == "sms":
             action = Citcall.METHOD_SMS
-        elif (method == "verify_otp"):
+        elif method == "verify_otp":
             action = Citcall.METHOD_VERIFY_MOTP
         else:
-            # code
             pass
 
-        url = Citcall.URL_CITCALL + Citcall.VERSION + action
+        request_url = Citcall.URL_CITCALL + Citcall.VERSION + action
         content = json.dumps(param)
         headers = {
-            "Content-Type":"application/json",
-	        "Authorization":auth,
-            "Content-Length":str(len(content))
+            "Content-Type": "application/json",
+            "Authorization": auth,
+            "Content-Length": str(len(content)),
         }
+        response = requests.post(request_url, data=content, headers=headers)
+        response_txt = response.text
+        return response_txt
 
-        response = requests.post(url, data=content, headers=headers)
-        res = response.text
-        return res
-
-
-    def clean_msisdn(self, msisdn):
+    def sms(self, **kwargs):
         """
-        Clean Msisdn
+        SMS
 
-        Parameters :
-            msisdn (str)
-
-        Returns :
-            msisdn (str)
-
+        Keyword Arguments *require OR **optional :
+            *msisdn             = (str)
+            *senderid           = (str)
+            *text               = (str)
+                  
+        Return : 
+            (dict)
         """
-        if (msisdn[0:1] != "+"):
-            msisdn = "+" + msisdn
-        if (msisdn[0:2] == "+0"):
-            msisdn = "+62" + msisdn[2:]
-        if (msisdn[0:1] == "0"):
-            msisdn = "+62" + a[2:]
-        return msisdn
+        if "msisdn" in kwargs.keys() and "senderid" in kwargs.keys() and "text" in kwargs.keys():
+            msisdn = kwargs["msisdn"]
+            senderid = kwargs["senderid"]
+            text = kwargs["text"]
+            new_list = []
+            tmp_list = msisdn.split(",")
+            for val in tmp_list:
+                msisdn = self.__clean_msisdn(val)
+                msisdn = re.sub('/[^0-9]/', '', msisdn)
+                if msisdn[0:2] == "62":
+                    if len(msisdn) > 10 and len(msisdn) < 15:
+                        prefix = msisdn[0:5]
+                        if len(msisdn) > 13:
+                            if self.is_three(prefix):
+                                new_list.append(msisdn)
+                    else:
+                        result = {
+                            "rc": "06",
+                            "info": "invalid msisdn or msisdn has invalid format!",
+                        }
+                        return result
+                else:
+                    if len(msisdn) > 9 and len(msisdn) < 18:
+                        new_list.append(msisdn)
+                    else:
+                        result = {
+                            "rc": "06",
+                            "info": "invalid msisdn or msisdn has invalid format!",
+                        }
+                        return result
+            msisdn = ",".join(new_list)
+            if senderid.lower().split() == "citcall":
+                senderid = senderid.upper()
+            param_hit = {
+                "msisdn": msisdn,
+                "senderid": senderid,
+                "text": text,
+            }
+            method = "sms"
+            result = self.__send_request(param_hit, method)
+        else:
+            result = {
+                "rc": "88",
+                "info": "missing parameter",
+            }
+            return result
+
+        return json.loads(result)
+
+    def verify_motp(self, **kwargs):
+        """
+        Verify Miscall OTP
+
+        Keyword Arguments *require OR **optional :
+            *msisdn        = (str)
+            *trxid         = (str)
+            *token         = (str)
+                  
+        Return : 
+            (dict)
+        """
+        if "msisdn" in kwargs.items() and "trxid" in kwargs.items() and "token" in kwargs.items():
+            if kwargs["token"].is_numeric():
+                if len(kwargs["token"]) > 3:
+                    msisdn = kwargs["msisdn"]
+                    trxid = kwargs["trxid"]
+                    token = kwargs["token"]
+                    continue_status = False
+                    msisdn = self.__clean_msisdn(msisdn)
+                    msisdn = re.sub('/[^0-9]/', '', msisdn)
+                    if msisdn[0:2] == "62":
+                        if len(msisdn) > 10 and len(msisdn) < 15:
+                            prefix = msisdn[0:5]
+                            if len(msisdn) > 13:
+                                if self.is_three(prefix):
+                                    continue_status = True
+                            else:
+                                continue_status = True
+                    else:
+                        if len(msisdn) > 9 and len(msisdn) < 18:
+                            continue_status = True
+
+                    if continue_status:
+                        param_hit = {
+                            "msisdn": msisdn,
+                            "trxid": trxid,
+                            "token": token,
+                        }
+
+                        method = "verify_otp"
+                        result = self.__send_request(param_hit, method)
+                    else:
+                        result = {
+                            "rc": "06",
+                            "info": "invalid mobile number",
+                        }
+                        return result
+                else:
+                    result = {
+                        "rc": "06",
+                        "info": "invalid token, token length minimum 4 digits",
+                    }
+                    return result
+            else:
+                result = {
+                    "rc":"06",
+                    "info":"invalid token, token length minimum 4 digits",
+                }
+                return result
+        else:
+            result = {
+                "rc":"88",
+                "info":"missing parameter",
+            }
+            return result
+
+        return json.loads(result)
 
 
     def is_three(self, prefix):
         """
         Cek prefix is three
 
-        Parameters :
-            prefix (str)
+        Parameter :
+            prefix -> (str)
 
-        Returns :
+        Return :
             (boolean)
         """
-        if (prefix == "62896"):
+        if prefix == "62896":
             return True
-        elif (prefix == "62897"):
+        elif prefix == "62897":
             return True
-        elif (prefix == "62898"):
+        elif prefix == "62898":
             return True
-        elif (prefix == "62899"):
+        elif prefix == "62899":
             return True
-        elif (prefix == "62895"):
+        elif prefix == "62895":
             return True
         else:
             return False
 
 
 
+    def __clean_msisdn(self, msisdn):
+        if msisdn[0:1] != "+":
+            msisdn = "+" + msisdn
 
+        if msisdn[0:2] == "+0":
+            msisdn = "+62" + msisdn[2:]
 
+        if msisdn[0:1] == "0":
+            msisdn = "+62" + msisdn[2:]
 
-            
-
-
+        return msisdn

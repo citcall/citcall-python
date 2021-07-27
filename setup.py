@@ -1,15 +1,18 @@
 import setuptools
+from os import path
 
-with open("README.md", "r") as fh:
-    long_description = fh.read()
+this_directory = path.abspath(path.dirname(__file__))
+
+with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
+    long_description = f.read()
 
 setuptools.setup(
     name="citcall-devel",
-    version="0.1",
+    version="0.4",
     author="Citcall",
     author_email="devel@citcall.com",
     description="Citcall REST API for Python",
-    long_description="Citcall REST API for Python. API support for Synchchronous Miscall, Asynchronous miscall, and SMS.",
+    long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/citcall/citcall-python",
     packages=setuptools.find_packages(),
